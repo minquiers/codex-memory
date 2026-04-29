@@ -13,6 +13,7 @@ from typing import Callable, Iterable
 
 import customtkinter as ctk
 
+from app_metadata import APP_NAME
 from config import AppConfig, load_config, save_config
 from session_parser import (
     delete_local_session_files,
@@ -193,7 +194,7 @@ class CodexMemoryApp(ctk.CTk):
         ctk.set_appearance_mode("System")
         ctk.set_default_color_theme("blue")
 
-        self.title("Codex Memory Sync")
+        self.title(APP_NAME)
         self.geometry("1120x720")
         self.minsize(960, 620)
 

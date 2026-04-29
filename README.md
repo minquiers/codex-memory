@@ -76,12 +76,14 @@
 - Tk / tkinter
 - 支持 macOS、Windows，代码中也保留了 Linux 打开目录分支
 
+注意：即使打包成可执行文件，目标机器上仍建议安装 Git，并保证 `git` 命令可用，因为项目的同步逻辑依赖 GitPython 调用系统 Git。
+
 ## 依赖安装
 
-当前仓库没有单独维护 `requirements.txt`，最少依赖如下：
+仓库内已提供：
 
-- `customtkinter`
-- `GitPython`
+- `requirements.txt`：运行依赖
+- `requirements-build.txt`：运行依赖 + 打包依赖
 
 推荐先创建虚拟环境。
 
@@ -101,6 +103,12 @@ python -m venv .venv
 .venv\Scripts\activate
 pip install customtkinter GitPython
 python main.py
+```
+
+如果直接按仓库依赖安装，可以改为：
+
+```bash
+pip install -r requirements.txt
 ```
 
 ## 首次使用
@@ -159,9 +167,17 @@ python main.py
 
 ```text
 codex-memory/
+├── .github/workflows/
 ├── README.md
+├── LICENSE
+├── app_metadata.py
+├── assets/
+├── build.py
 ├── main.py
 ├── config.py
+├── package_dist.py
+├── requirements.txt
+├── requirements-build.txt
 ├── sync_manager.py
 └── session_parser.py
 ```
@@ -187,6 +203,15 @@ codex-memory/
 - 读取 / 保存 `~/.codex-memory/config.json`
 - 提供默认目录和默认配置
 
+#### `app_metadata.py`
+
+应用元信息，负责：
+
+- 维护应用名称
+- 维护版本号
+- 维护 macOS bundle id
+- 维护默认图标路径
+
 #### `sync_manager.py`
 
 Git 同步层，负责：
@@ -197,6 +222,23 @@ Git 同步层，负责：
 - 复制本地会话到同步目录
 - 自动 `commit`
 - 自动 `push`
+
+#### `build.py`
+
+打包入口，负责：
+
+- 检测当前宿主平台
+- 组装 PyInstaller 参数
+- 生成 macOS / Windows / Linux 对应平台的可执行产物
+- 支持 `--onefile`、`--icon`、`--dry-run` 等构建参数
+
+#### `package_dist.py`
+
+发布打包入口，负责：
+
+- 将 `dist/<platform>/` 中的构建产物打成 zip
+- 统一输出到 `release/<platform>/`
+- 供本地发包和 GitHub Actions Release 复用
 
 #### `session_parser.py`
 
@@ -228,6 +270,81 @@ flowchart LR
 ## 命令行能力
 
 除了桌面界面，这个项目也保留了部分 CLI 能力，适合调试或脚本化使用。
+
+### 打包命令
+
+先安装打包依赖：
+
+```bash
+pip install -r requirements-build.txt
+```
+
+然后在目标平台本机执行：
+
+```bash
+python build.py --clean
+```
+
+可选参数：
+
+- `--onefile`：生成单文件可执行产物
+- `--icon <path>`：指定图标文件
+- `--name <AppName>`：自定义应用名
+- `--dry-run`：只打印 PyInstaller 参数，不真正构建
+
+示例：
+
+```bash
+python build.py --clean --onefile
+python build.py --clean --icon assets/app.icns
+python build.py --dry-run
+```
+
+构建输出默认位于：
+
+```text
+dist/macos/
+dist/windows/
+dist/linux/
+```
+
+构建完成后，如果你想进一步生成适合上传 Release 的压缩包：
+
+```bash
+python package_dist.py
+```
+
+压缩包默认输出到：
+
+```text
+release/macos/
+release/windows/
+release/linux/
+```
+
+说明：
+
+- macOS 需要在 macOS 上执行打包，产出 `.app` 或对应可执行文件
+- Windows 需要在 Windows 上执行打包，产出 `.exe`
+- `PyInstaller` 不负责 macOS / Windows 之间的交叉编译
+
+### GitHub Actions 自动构建
+
+仓库中已包含两个工作流：
+
+- `.github/workflows/build.yml`
+  作用：在 `push`、`pull_request`、手动触发时自动构建 macOS / Windows 产物并上传 Artifact
+- `.github/workflows/release.yml`
+  作用：在推送 `v*` 标签时自动构建 macOS / Windows 包，并创建 GitHub Release
+
+示例发布流程：
+
+```bash
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+如果仓库中的 `app_metadata.py` 版本号也同步为 `0.1.0`，发布记录会更一致。
 
 ### Git 同步命令
 
